@@ -16,10 +16,11 @@ interface Booking {
   created_at: string;
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  confirmed: { label: "Confirmé", color: "bg-blue-100 text-blue-700" },
-  completed: { label: "Terminé", color: "bg-green-100 text-green-700" },
-  cancelled: { label: "Annulé", color: "bg-red-100 text-red-700" },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  confirmed: { label: "À faire", color: "text-orange-700", bg: "bg-orange-100" },
+  completed: { label: "Réalisé", color: "text-blue-700", bg: "bg-blue-100" },
+  paid: { label: "Payé", color: "text-green-700", bg: "bg-green-100" },
+  cancelled: { label: "Annulé", color: "text-red-700", bg: "bg-red-100" },
 };
 
 export default function AdminPage() {
@@ -38,9 +39,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const saved = sessionStorage.getItem("admin_token");
-    if (saved) {
-      setToken(saved);
-    }
+    if (saved) setToken(saved);
   }, []);
 
   useEffect(() => {
@@ -134,10 +133,11 @@ export default function AdminPage() {
 
   const stats = {
     total: bookings.length,
-    confirmed: bookings.filter((b) => b.status === "confirmed").length,
-    completed: bookings.filter((b) => b.status === "completed").length,
+    aFaire: bookings.filter((b) => b.status === "confirmed").length,
+    realise: bookings.filter((b) => b.status === "completed").length,
+    paye: bookings.filter((b) => b.status === "paid").length,
     revenue: bookings
-      .filter((b) => b.status !== "cancelled")
+      .filter((b) => b.status === "paid")
       .reduce((sum, b) => sum + b.price, 0),
   };
 
@@ -156,32 +156,37 @@ export default function AdminPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Total réservations</p>
+            <p className="text-sm text-gray-500">Total</p>
             <p className="text-2xl font-bold">{stats.total}</p>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Confirmées</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.confirmed}</p>
+          <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-orange-400">
+            <p className="text-sm text-gray-500">À faire</p>
+            <p className="text-2xl font-bold text-orange-600">{stats.aFaire}</p>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-blue-400">
+            <p className="text-sm text-gray-500">Réalisé</p>
+            <p className="text-2xl font-bold text-blue-600">{stats.realise}</p>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-green-400">
+            <p className="text-sm text-gray-500">Payé</p>
+            <p className="text-2xl font-bold text-green-600">{stats.paye}</p>
           </div>
           <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Terminées</p>
-            <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Chiffre d&apos;affaires</p>
+            <p className="text-sm text-gray-500">CA encaissé</p>
             <p className="text-2xl font-bold">{stats.revenue}&nbsp;&euro;</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {[
             { key: "all", label: "Tous" },
-            { key: "confirmed", label: "Confirmés" },
-            { key: "completed", label: "Terminés" },
-            { key: "cancelled", label: "Annulés" },
+            { key: "confirmed", label: "À faire" },
+            { key: "completed", label: "Réalisé" },
+            { key: "paid", label: "Payé" },
+            { key: "cancelled", label: "Annulé" },
           ].map((f) => (
             <button
               key={f.key}
@@ -197,84 +202,106 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {/* Liste des commandes */}
+        <div className="space-y-3">
           {filtered.length === 0 ? (
-            <p className="p-8 text-center text-gray-500">
-              Aucune réservation trouvée.
-            </p>
+            <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm">
+              Aucune commande trouvée.
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Client</th>
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Créneau</th>
-                    <th className="px-4 py-3 font-medium">Bacs</th>
-                    <th className="px-4 py-3 font-medium">Prix</th>
-                    <th className="px-4 py-3 font-medium">Statut</th>
-                    <th className="px-4 py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filtered.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{b.client_name}</p>
-                        <p className="text-xs text-gray-500">{b.client_phone}</p>
-                        <p className="text-xs text-gray-400">{b.address}</p>
-                      </td>
-                      <td className="px-4 py-3">
+            filtered.map((b) => {
+              const cfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.confirmed;
+              return (
+                <div
+                  key={b.id}
+                  className="bg-white rounded-xl shadow-sm p-5 flex flex-col md:flex-row md:items-center gap-4"
+                >
+                  {/* Info client */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <p className="font-semibold text-base">{b.client_name}</p>
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.color}`}
+                      >
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {b.client_phone} &middot; {b.client_email}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate">{b.address}</p>
+                  </div>
+
+                  {/* Détails RDV */}
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="text-center">
+                      <p className="text-gray-400 text-xs">Date</p>
+                      <p className="font-medium">
                         {new Date(b.date).toLocaleDateString("fr-FR", {
                           weekday: "short",
                           day: "numeric",
                           month: "short",
                         })}
-                      </td>
-                      <td className="px-4 py-3">{b.time_slot}</td>
-                      <td className="px-4 py-3">{b.bin_count}</td>
-                      <td className="px-4 py-3 font-medium">{b.price}&nbsp;&euro;</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                            STATUS_LABELS[b.status]?.color || "bg-gray-100"
-                          }`}
-                        >
-                          {STATUS_LABELS[b.status]?.label || b.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          {b.status === "confirmed" && (
-                            <>
-                              <button
-                                onClick={() => updateStatus(b.id, "completed")}
-                                className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200"
-                              >
-                                Terminer
-                              </button>
-                              <button
-                                onClick={() => updateStatus(b.id, "cancelled")}
-                                className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200"
-                              >
-                                Annuler
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={() => deleteBooking(b.id)}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
-                          >
-                            Suppr.
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-gray-400 text-xs">Heure</p>
+                      <p className="font-medium">{b.time_slot}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-gray-400 text-xs">Bacs</p>
+                      <p className="font-medium">{b.bin_count}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-gray-400 text-xs">Prix</p>
+                      <p className="font-bold text-green-600">{b.price}&nbsp;&euro;</p>
+                    </div>
+                  </div>
+
+                  {/* Actions statut */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {b.status !== "confirmed" && (
+                      <button
+                        onClick={() => updateStatus(b.id, "confirmed")}
+                        className="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors"
+                      >
+                        À faire
+                      </button>
+                    )}
+                    {b.status !== "completed" && (
+                      <button
+                        onClick={() => updateStatus(b.id, "completed")}
+                        className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                      >
+                        Réalisé
+                      </button>
+                    )}
+                    {b.status !== "paid" && (
+                      <button
+                        onClick={() => updateStatus(b.id, "paid")}
+                        className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
+                      >
+                        Payé
+                      </button>
+                    )}
+                    {b.status !== "cancelled" && (
+                      <button
+                        onClick={() => updateStatus(b.id, "cancelled")}
+                        className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteBooking(b.id)}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      Suppr.
+                    </button>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
