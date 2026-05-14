@@ -64,11 +64,8 @@ async function initDb(): Promise<Client> {
     });
   }
 
-  const availCheck = await client.execute("SELECT COUNT(*) as count FROM availability");
-  if (Number(availCheck.rows[0].count) !== 7) {
-    await client.execute("DELETE FROM availability");
-    await seedAvailability(client);
-  }
+  await client.execute("DELETE FROM availability");
+  await seedAvailability(client);
 
   _initialized = true;
   return client;
