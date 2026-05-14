@@ -56,11 +56,17 @@ async function initDb(): Promise<Client> {
   `);
 
   const adminCheck = await client.execute("SELECT COUNT(*) as count FROM admin");
+  const currentPassword = "Rachi0576***";
+  const hash = bcryptjs.hashSync(currentPassword, 10);
   if (Number(adminCheck.rows[0].count) === 0) {
-    const hash = bcryptjs.hashSync("ecolavage2026", 10);
     await client.execute({
       sql: "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
       args: ["admin", hash],
+    });
+  } else {
+    await client.execute({
+      sql: "UPDATE admin SET password_hash = ? WHERE username = ?",
+      args: [hash, "admin"],
     });
   }
 
