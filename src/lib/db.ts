@@ -55,14 +55,12 @@ async function initDb(): Promise<Client> {
     );
   `);
 
-  const adminCheck = await client.execute("SELECT COUNT(*) as count FROM admin");
-  if (Number(adminCheck.rows[0].count) === 0) {
-    const hash = bcryptjs.hashSync("Rachi0576***", 10);
-    await client.execute({
-      sql: "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
-      args: ["admin", hash],
-    });
-  }
+  const hash = bcryptjs.hashSync("Rachi0576***", 10);
+  await client.execute("DELETE FROM admin");
+  await client.execute({
+    sql: "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
+    args: ["admin", hash],
+  });
 
   const availCheck = await client.execute("SELECT COUNT(*) as count FROM availability");
   if (Number(availCheck.rows[0].count) === 0) {
