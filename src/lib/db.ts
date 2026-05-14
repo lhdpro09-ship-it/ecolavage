@@ -65,7 +65,8 @@ async function initDb(): Promise<Client> {
   }
 
   const availCheck = await client.execute("SELECT COUNT(*) as count FROM availability");
-  if (Number(availCheck.rows[0].count) === 0) {
+  if (Number(availCheck.rows[0].count) !== 7) {
+    await client.execute("DELETE FROM availability");
     await seedAvailability(client);
   }
 
@@ -75,11 +76,13 @@ async function initDb(): Promise<Client> {
 
 async function seedAvailability(client: Client) {
   const slots = [
-    { day: 2, start: "17:00", end: "19:00" },
-    { day: 3, start: "13:00", end: "19:00" },
-    { day: 4, start: "17:00", end: "19:00" },
-    { day: 6, start: "09:00", end: "18:00" },
-    { day: 0, start: "09:00", end: "18:00" },
+    { day: 0, start: "08:00", end: "20:00" }, // Dimanche
+    { day: 1, start: "08:00", end: "20:00" }, // Lundi
+    { day: 2, start: "08:00", end: "20:00" }, // Mardi
+    { day: 3, start: "08:00", end: "20:00" }, // Mercredi
+    { day: 4, start: "08:00", end: "20:00" }, // Jeudi
+    { day: 5, start: "08:00", end: "20:00" }, // Vendredi
+    { day: 6, start: "08:00", end: "20:00" }, // Samedi
   ];
 
   for (const slot of slots) {
