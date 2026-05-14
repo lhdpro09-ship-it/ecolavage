@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -33,7 +34,14 @@ export default function Home() {
       <main className="flex-1">
         {/* Hero */}
         <section className="bg-gradient-to-br from-green-600 to-green-800 text-white">
-          <div className="max-w-6xl mx-auto px-4 py-24 text-center">
+          <div className="max-w-6xl mx-auto px-4 py-20 text-center">
+            <Image
+              src="/logo.png"
+              alt="Ecolavage"
+              width={140}
+              height={140}
+              className="mx-auto mb-8 drop-shadow-lg rounded-2xl bg-white/10 p-2"
+            />
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Des poubelles propres,
               <br />

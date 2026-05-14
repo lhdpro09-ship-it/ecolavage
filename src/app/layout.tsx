@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   title: "Ecolavage - Nettoyage de poubelles à domicile",
   description:
     "Service professionnel de nettoyage de poubelles à domicile. Réservez en ligne facilement.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
