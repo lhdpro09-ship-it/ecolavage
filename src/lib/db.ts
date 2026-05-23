@@ -48,6 +48,13 @@ async function initDb(): Promise<Client> {
       reason TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS blocked_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      time_slot TEXT NOT NULL,
+      UNIQUE(date, time_slot)
+    );
+
     CREATE TABLE IF NOT EXISTS admin (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,

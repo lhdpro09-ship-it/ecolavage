@@ -37,6 +37,12 @@ export async function GET(request: NextRequest) {
   });
   const bookedSlots = new Set(bookingsResult.rows.map((b) => b.time_slot as string));
 
+  const blockedSlotsResult = await db.execute({
+    sql: "SELECT time_slot FROM blocked_slots WHERE date = ?",
+    args: [dateStr],
+  });
+  const blockedSlotSet = new Set(blockedSlotsResult.rows.map((r) => r.time_slot as string));
+
   const slots: { start: string; end: string }[] = [];
 
   for (const avail of availResult.rows) {
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
       const slotEnd = `${String(nextH).padStart(2, "0")}:${String(nextM).padStart(2, "0")}`;
       const slotLabel = `${slotStart} - ${slotEnd}`;
 
-      if (!bookedSlots.has(slotLabel)) {
+      if (!bookedSlots.has(slotLabel) && !blockedSlotSet.has(slotLabel)) {
         slots.push({ start: slotStart, end: slotEnd });
       }
 

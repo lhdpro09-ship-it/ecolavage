@@ -16,11 +16,16 @@ interface Booking {
   created_at: string;
 }
 
-interface BlockedDate {
-  id: number;
-  date: string;
-  reason: string | null;
-}
+const ALL_SLOTS = Array.from({ length: 12 }, (_, i) => {
+  const h = 8 + i;
+  return `${String(h).padStart(2, "0")}:00 - ${String(h + 1).padStart(2, "0")}:00`;
+});
+
+const JOUR_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const MOIS_LABELS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   confirmed: { label: "À faire", color: "text-orange-700", bg: "bg-orange-100" },
@@ -37,9 +42,14 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"bookings" | "blocked">("bookings");
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
-  const [newBlockedDate, setNewBlockedDate] = useState("");
-  const [newBlockedReason, setNewBlockedReason] = useState("");
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [fullDayBlocked, setFullDayBlocked] = useState(false);
+  const [blockedSlots, setBlockedSlots] = useState<string[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [blockedFullDays, setBlockedFullDays] = useState<string[]>([]);
+  const [slotDates, setSlotDates] = useState<string[]>([]);
 
   const fetchBookings = useCallback(async () => {
     const res = await fetch("/api/admin/bookings");
@@ -47,10 +57,19 @@ export default function AdminPage() {
     setBookings(data.bookings || []);
   }, []);
 
-  const fetchBlockedDates = useCallback(async () => {
+  const fetchBlockedOverview = useCallback(async () => {
     const res = await fetch("/api/admin/blocked-dates");
     const data = await res.json();
-    setBlockedDates(data.blockedDates || []);
+    setBlockedFullDays((data.blockedDates || []).map((d: { date: string }) => d.date));
+    setSlotDates(data.slotDates || []);
+  }, []);
+
+  const fetchDayDetail = useCallback(async (date: string) => {
+    const res = await fetch(`/api/admin/blocked-dates?date=${date}`);
+    const data = await res.json();
+    setFullDayBlocked(data.fullDayBlocked);
+    setBlockedSlots(data.blockedSlots || []);
+    setBookedSlots(data.bookedSlots || []);
   }, []);
 
   useEffect(() => {
@@ -61,9 +80,13 @@ export default function AdminPage() {
   useEffect(() => {
     if (token) {
       fetchBookings();
-      fetchBlockedDates();
+      fetchBlockedOverview();
     }
-  }, [token, fetchBookings, fetchBlockedDates]);
+  }, [token, fetchBookings, fetchBlockedOverview]);
+
+  useEffect(() => {
+    if (selectedDate) fetchDayDetail(selectedDate);
+  }, [selectedDate, fetchDayDetail]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -101,26 +124,57 @@ export default function AdminPage() {
     fetchBookings();
   }
 
-  async function addBlockedDate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newBlockedDate) return;
-    await fetch("/api/admin/blocked-dates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: newBlockedDate, reason: newBlockedReason }),
-    });
-    setNewBlockedDate("");
-    setNewBlockedReason("");
-    fetchBlockedDates();
+  async function toggleSlot(slot: string) {
+    if (!selectedDate) return;
+    const isBlocked = blockedSlots.includes(slot);
+    if (isBlocked) {
+      await fetch("/api/admin/blocked-dates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, time_slot: slot }),
+      });
+    } else {
+      await fetch("/api/admin/blocked-dates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, time_slot: slot }),
+      });
+    }
+    fetchDayDetail(selectedDate);
+    fetchBlockedOverview();
   }
 
-  async function removeBlockedDate(id: number) {
-    await fetch("/api/admin/blocked-dates", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    fetchBlockedDates();
+  async function toggleFullDay() {
+    if (!selectedDate) return;
+    if (fullDayBlocked) {
+      await fetch("/api/admin/blocked-dates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, unblock_full_day: true }),
+      });
+    } else {
+      await fetch("/api/admin/blocked-dates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, block_full_day: true }),
+      });
+    }
+    fetchDayDetail(selectedDate);
+    fetchBlockedOverview();
+  }
+
+  function getCalendarDays() {
+    const first = new Date(calYear, calMonth, 1);
+    const startDay = first.getDay(); // 0=dim
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const days: (number | null)[] = [];
+    for (let i = 0; i < startDay; i++) days.push(null);
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    return days;
+  }
+
+  function fmtDate(day: number) {
+    return `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
   function handleLogout() {
@@ -221,100 +275,133 @@ export default function AdminPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {activeTab === "blocked" && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Bloquer des jours</h2>
-            <p className="text-gray-500 mb-6">
-              Les jours bloqués n&apos;apparaîtront plus dans les créneaux disponibles pour les clients.
-            </p>
-
-            {/* Formulaire */}
-            <form
-              onSubmit={addBlockedDate}
-              className="bg-white rounded-xl shadow-sm p-5 mb-8 flex flex-col sm:flex-row gap-3"
-            >
-              <div className="flex-1">
-                <label className="block text-xs text-gray-500 mb-1">Date à bloquer</label>
-                <input
-                  type="date"
-                  value={newBlockedDate}
-                  onChange={(e) => setNewBlockedDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs text-gray-500 mb-1">Raison (optionnel)</label>
-                <input
-                  type="text"
-                  placeholder="Ex : Vacances, cours..."
-                  value={newBlockedReason}
-                  onChange={(e) => setNewBlockedReason(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div className="flex items-end">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Calendrier */}
+            <div className="bg-white rounded-xl shadow-sm p-5 flex-1">
+              <div className="flex items-center justify-between mb-4">
                 <button
-                  type="submit"
-                  className="w-full sm:w-auto bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                  onClick={() => {
+                    if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
+                    else setCalMonth(calMonth - 1);
+                  }}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 text-lg"
                 >
-                  Bloquer
+                  &lsaquo;
+                </button>
+                <h3 className="font-bold text-lg">
+                  {MOIS_LABELS[calMonth]} {calYear}
+                </h3>
+                <button
+                  onClick={() => {
+                    if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
+                    else setCalMonth(calMonth + 1);
+                  }}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 text-lg"
+                >
+                  &rsaquo;
                 </button>
               </div>
-            </form>
 
-            {/* Liste des dates bloquées */}
-            <div className="space-y-3">
-              {blockedDates.length === 0 ? (
-                <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm">
-                  Aucun jour bloqué. Vous êtes disponible tous les jours.
+              <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-2">
+                {JOUR_LABELS.map((j) => <div key={j} className="py-1 font-medium">{j}</div>)}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {getCalendarDays().map((day, i) => {
+                  if (day === null) return <div key={`e${i}`} />;
+                  const dateStr = fmtDate(day);
+                  const today = new Date();
+                  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                  const isPast = dateStr < todayStr;
+                  const isSelected = selectedDate === dateStr;
+                  const isFullBlocked = blockedFullDays.includes(dateStr);
+                  const hasBlockedSlots = slotDates.includes(dateStr);
+                  const isToday = dateStr === todayStr;
+
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => !isPast && setSelectedDate(dateStr)}
+                      disabled={isPast}
+                      className={`aspect-square rounded-lg text-sm font-medium flex items-center justify-center relative transition-all
+                        ${isPast ? "text-gray-300 cursor-default" : "hover:bg-gray-100 cursor-pointer"}
+                        ${isSelected ? "ring-2 ring-green-500 bg-green-50" : ""}
+                        ${isFullBlocked ? "bg-red-100 text-red-700" : ""}
+                        ${hasBlockedSlots && !isFullBlocked ? "bg-orange-50 text-orange-700" : ""}
+                        ${isToday && !isFullBlocked && !hasBlockedSlots ? "bg-green-50 text-green-700 font-bold" : ""}
+                      `}
+                    >
+                      {day}
+                      {isFullBlocked && <span className="absolute bottom-0.5 text-[8px]">bloqué</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> Jour bloqué</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-50 border border-orange-300" /> Créneaux bloqués</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-50 border border-green-300" /> Aujourd&apos;hui</span>
+              </div>
+            </div>
+
+            {/* Détail du jour sélectionné */}
+            <div className="bg-white rounded-xl shadow-sm p-5 lg:w-80">
+              {!selectedDate ? (
+                <div className="text-center text-gray-400 py-12">
+                  <p className="text-4xl mb-3">📅</p>
+                  <p>Clique sur un jour du calendrier</p>
                 </div>
               ) : (
-                blockedDates.map((bd) => {
-                  const d = new Date(bd.date + "T00:00:00");
-                  const isPast = d < new Date(new Date().toDateString());
-                  return (
-                    <div
-                      key={bd.id}
-                      className={`bg-white rounded-xl shadow-sm p-5 flex items-center justify-between ${
-                        isPast ? "opacity-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex flex-col items-center justify-center text-xs font-bold">
-                          <span className="text-lg leading-none">
-                            {d.getDate()}
-                          </span>
-                          <span className="uppercase text-[10px]">
-                            {d.toLocaleDateString("fr-FR", { month: "short" })}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold">
-                            {d.toLocaleDateString("fr-FR", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })}
-                          </p>
-                          {bd.reason && (
-                            <p className="text-sm text-gray-500">{bd.reason}</p>
-                          )}
-                          {isPast && (
-                            <span className="text-xs text-gray-400">Passé</span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeBlockedDate(bd.id)}
-                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        Débloquer
-                      </button>
+                <>
+                  <h3 className="font-bold text-lg mb-1">
+                    {new Date(selectedDate + "T00:00:00").toLocaleDateString("fr-FR", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </h3>
+
+                  {/* Bouton journée entière */}
+                  <button
+                    onClick={toggleFullDay}
+                    className={`w-full py-2.5 rounded-lg font-medium text-sm mb-4 transition-colors ${
+                      fullDayBlocked
+                        ? "bg-red-600 text-white hover:bg-red-700"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {fullDayBlocked ? "🔴 Journée bloquée — Débloquer" : "Bloquer toute la journée"}
+                  </button>
+
+                  {!fullDayBlocked && (
+                    <div className="space-y-1.5">
+                      {ALL_SLOTS.map((slot) => {
+                        const isBooked = bookedSlots.includes(slot);
+                        const isBlocked = blockedSlots.includes(slot);
+                        return (
+                          <button
+                            key={slot}
+                            onClick={() => !isBooked && toggleSlot(slot)}
+                            disabled={isBooked}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                              isBooked
+                                ? "bg-blue-50 text-blue-400 cursor-not-allowed"
+                                : isBlocked
+                                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                : "bg-green-50 text-green-700 hover:bg-green-100"
+                            }`}
+                          >
+                            <span className="font-medium">{slot}</span>
+                            <span className="text-xs">
+                              {isBooked ? "Réservé" : isBlocked ? "Bloqué" : "Dispo"}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  );
-                })
+                  )}
+                </>
               )}
             </div>
           </div>
