@@ -16,6 +16,12 @@ interface Booking {
   created_at: string;
 }
 
+interface BlockedDate {
+  id: number;
+  date: string;
+  reason: string | null;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   confirmed: { label: "À faire", color: "text-orange-700", bg: "bg-orange-100" },
   completed: { label: "Réalisé", color: "text-blue-700", bg: "bg-blue-100" },
@@ -30,11 +36,21 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<"bookings" | "blocked">("bookings");
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [newBlockedDate, setNewBlockedDate] = useState("");
+  const [newBlockedReason, setNewBlockedReason] = useState("");
 
   const fetchBookings = useCallback(async () => {
     const res = await fetch("/api/admin/bookings");
     const data = await res.json();
     setBookings(data.bookings || []);
+  }, []);
+
+  const fetchBlockedDates = useCallback(async () => {
+    const res = await fetch("/api/admin/blocked-dates");
+    const data = await res.json();
+    setBlockedDates(data.blockedDates || []);
   }, []);
 
   useEffect(() => {
@@ -43,8 +59,11 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (token) fetchBookings();
-  }, [token, fetchBookings]);
+    if (token) {
+      fetchBookings();
+      fetchBlockedDates();
+    }
+  }, [token, fetchBookings, fetchBlockedDates]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +99,28 @@ export default function AdminPage() {
       body: JSON.stringify({ id }),
     });
     fetchBookings();
+  }
+
+  async function addBlockedDate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newBlockedDate) return;
+    await fetch("/api/admin/blocked-dates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: newBlockedDate, reason: newBlockedReason }),
+    });
+    setNewBlockedDate("");
+    setNewBlockedReason("");
+    fetchBlockedDates();
+  }
+
+  async function removeBlockedDate(id: number) {
+    await fetch("/api/admin/blocked-dates", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchBlockedDates();
   }
 
   function handleLogout() {
@@ -144,17 +185,142 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-green-600">Ecolavage Admin</h1>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          Déconnexion
-        </button>
+      <nav className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-green-600">Ecolavage Admin</h1>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Déconnexion
+          </button>
+        </div>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab("bookings")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "bookings"
+                ? "bg-green-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            📋 Réservations
+          </button>
+          <button
+            onClick={() => setActiveTab("blocked")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "blocked"
+                ? "bg-green-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            🚫 Disponibilités
+          </button>
+        </div>
       </nav>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {activeTab === "blocked" && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Bloquer des jours</h2>
+            <p className="text-gray-500 mb-6">
+              Les jours bloqués n&apos;apparaîtront plus dans les créneaux disponibles pour les clients.
+            </p>
+
+            {/* Formulaire */}
+            <form
+              onSubmit={addBlockedDate}
+              className="bg-white rounded-xl shadow-sm p-5 mb-8 flex flex-col sm:flex-row gap-3"
+            >
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500 mb-1">Date à bloquer</label>
+                <input
+                  type="date"
+                  value={newBlockedDate}
+                  onChange={(e) => setNewBlockedDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500 mb-1">Raison (optionnel)</label>
+                <input
+                  type="text"
+                  placeholder="Ex : Vacances, cours..."
+                  value={newBlockedReason}
+                  onChange={(e) => setNewBlockedReason(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                >
+                  Bloquer
+                </button>
+              </div>
+            </form>
+
+            {/* Liste des dates bloquées */}
+            <div className="space-y-3">
+              {blockedDates.length === 0 ? (
+                <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm">
+                  Aucun jour bloqué. Vous êtes disponible tous les jours.
+                </div>
+              ) : (
+                blockedDates.map((bd) => {
+                  const d = new Date(bd.date + "T00:00:00");
+                  const isPast = d < new Date(new Date().toDateString());
+                  return (
+                    <div
+                      key={bd.id}
+                      className={`bg-white rounded-xl shadow-sm p-5 flex items-center justify-between ${
+                        isPast ? "opacity-50" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex flex-col items-center justify-center text-xs font-bold">
+                          <span className="text-lg leading-none">
+                            {d.getDate()}
+                          </span>
+                          <span className="uppercase text-[10px]">
+                            {d.toLocaleDateString("fr-FR", { month: "short" })}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {d.toLocaleDateString("fr-FR", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                          {bd.reason && (
+                            <p className="text-sm text-gray-500">{bd.reason}</p>
+                          )}
+                          {isPast && (
+                            <span className="text-xs text-gray-400">Passé</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeBlockedDate(bd.id)}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                      >
+                        Débloquer
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "bookings" && <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -304,6 +470,7 @@ export default function AdminPage() {
             })
           )}
         </div>
+        </>}
       </div>
     </div>
   );
