@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { v4 as uuid } from "uuid";
 import initDb from "@/lib/db";
 import { getPrice } from "@/lib/pricing";
+import { sendClientConfirmation, sendAdminNotification } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,11 @@ export async function POST(request: NextRequest) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [id, client_name, client_email, client_phone, address, bins, price, date, time_slot],
   });
+
+  // Envoi des emails en arrière-plan (ne bloque pas la réponse)
+  const bookingInfo = { id, client_name, client_email, client_phone, address, bin_count: bins, price, date, time_slot };
+  sendClientConfirmation(bookingInfo).catch(() => {});
+  sendAdminNotification(bookingInfo).catch(() => {});
 
   return Response.json({ id, price, status: "confirmed" }, { status: 201 });
 }
