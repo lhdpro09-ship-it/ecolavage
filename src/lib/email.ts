@@ -1,9 +1,14 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ecolavage.pro@gmail.com";
-const FROM_EMAIL = "Ecolavage <onboarding@resend.dev>";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "lvzxrpro@yahoo.com";
 
 interface BookingInfo {
   id: string;
@@ -29,8 +34,8 @@ function formatDate(dateStr: string): string {
 
 export async function sendClientConfirmation(booking: BookingInfo) {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await transporter.sendMail({
+      from: `"Ecolavage" <${process.env.GMAIL_USER}>`,
       to: booking.client_email,
       subject: `Ecolavage - Confirmation de votre réservation`,
       html: `
@@ -83,8 +88,8 @@ export async function sendClientConfirmation(booking: BookingInfo) {
 
 export async function sendAdminNotification(booking: BookingInfo) {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await transporter.sendMail({
+      from: `"Ecolavage" <${process.env.GMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: `Nouvelle réservation - ${booking.client_name} (${booking.bin_count} bac${booking.bin_count > 1 ? "s" : ""})`,
       html: `
