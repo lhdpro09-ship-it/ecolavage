@@ -34,7 +34,8 @@ function formatDate(dateStr: string): string {
 
 export async function sendClientConfirmation(booking: BookingInfo) {
   try {
-    await transporter.sendMail({
+    console.log("Sending client email to:", booking.client_email);
+    const info = await transporter.sendMail({
       from: `"Ecolavage" <${process.env.GMAIL_USER}>`,
       to: booking.client_email,
       subject: `Ecolavage - Confirmation de votre réservation`,
@@ -81,6 +82,7 @@ export async function sendClientConfirmation(booking: BookingInfo) {
         </div>
       `,
     });
+    console.log("Client email sent:", info.messageId);
   } catch (err) {
     console.error("Email client error:", err);
   }
@@ -88,7 +90,8 @@ export async function sendClientConfirmation(booking: BookingInfo) {
 
 export async function sendAdminNotification(booking: BookingInfo) {
   try {
-    await transporter.sendMail({
+    console.log("Sending admin email to:", ADMIN_EMAIL);
+    const info = await transporter.sendMail({
       from: `"Ecolavage" <${process.env.GMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: `Nouvelle réservation - ${booking.client_name} (${booking.bin_count} bac${booking.bin_count > 1 ? "s" : ""})`,
@@ -135,6 +138,7 @@ export async function sendAdminNotification(booking: BookingInfo) {
         </div>
       `,
     });
+    console.log("Admin email sent:", info.messageId);
   } catch (err) {
     console.error("Email admin error:", err);
   }

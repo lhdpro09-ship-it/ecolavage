@@ -44,10 +44,16 @@ export async function POST(request: NextRequest) {
     args: [id, client_name, client_email, client_phone, address, bins, price, date, time_slot],
   });
 
-  // Envoi des emails en arrière-plan (ne bloque pas la réponse)
+  // Envoi des emails (on attend avant de répondre, sinon Vercel coupe la fonction)
   const bookingInfo = { id, client_name, client_email, client_phone, address, bin_count: bins, price, date, time_slot };
-  sendClientConfirmation(bookingInfo).catch(() => {});
-  sendAdminNotification(bookingInfo).catch(() => {});
+  try {
+    await Promise.all([
+      sendClientConfirmation(bookingInfo),
+      sendAdminNotification(bookingInfo),
+    ]);
+  } catch (err) {
+    console.error("Email send failed:", err);
+  }
 
   return Response.json({ id, price, status: "confirmed" }, { status: 201 });
 }
