@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { v4 as uuid } from "uuid";
 import initDb from "@/lib/db";
 import { getPrice } from "@/lib/pricing";
-import { sendClientConfirmation, sendAdminNotification } from "@/lib/email";
+import { sendAdminNotification } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +47,7 @@ export async function POST(request: NextRequest) {
   // Envoi des emails (on attend avant de répondre, sinon Vercel coupe la fonction)
   const bookingInfo = { id, client_name, client_email, client_phone, address, bin_count: bins, price, date, time_slot };
   try {
-    await Promise.all([
-      sendClientConfirmation(bookingInfo),
-      sendAdminNotification(bookingInfo),
-    ]);
+    await sendAdminNotification(bookingInfo);
   } catch (err) {
     console.error("Email send failed:", err);
   }

@@ -1,45 +1,28 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!user || !pass) {
-    return Response.json({
-      error: "GMAIL_USER ou GMAIL_APP_PASSWORD manquant",
-      hasUser: !!user,
-      hasPass: !!pass,
-    });
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return Response.json({ error: "RESEND_API_KEY manquant" });
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user, pass },
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.send({
+      from: "Ecolavage <onboarding@resend.dev>",
+      to: "lhdpro09@gmail.com",
+      subject: "Test Ecolavage - Ca marche !",
+      html: "<h2 style='color: green;'>Les emails Ecolavage fonctionnent !</h2>",
     });
 
-    // Vérifie la connexion SMTP
-    await transporter.verify();
+    if (error) {
+      return Response.json({ error });
+    }
 
-    // Envoie un email test
-    const info = await transporter.sendMail({
-      from: `"Ecolavage" <${user}>`,
-      to: user,
-      subject: "Test Ecolavage - Email fonctionne !",
-      html: "<h2>Les emails Ecolavage fonctionnent !</h2><p>Ce mail est un test.</p>",
-    });
-
-    return Response.json({
-      success: true,
-      messageId: info.messageId,
-      accepted: info.accepted,
-    });
+    return Response.json({ success: true, id: data?.id });
   } catch (err) {
-    return Response.json({
-      error: String(err),
-      message: err instanceof Error ? err.message : "Unknown error",
-    });
+    return Response.json({ error: String(err) });
   }
 }
