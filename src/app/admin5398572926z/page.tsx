@@ -277,6 +277,9 @@ export default function AdminPage() {
     revenue: bookings
       .filter((b) => b.status === "paid")
       .reduce((sum, b) => sum + b.price, 0),
+    aEncaisser: bookings
+      .filter((b) => b.status === "completed")
+      .reduce((sum, b) => sum + b.price, 0),
   };
 
   return (
@@ -545,7 +548,7 @@ export default function AdminPage() {
 
         {activeTab === "bookings" && <>
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">Total</p>
             <p className="text-2xl font-bold">{stats.total}</p>
@@ -561,6 +564,10 @@ export default function AdminPage() {
           <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-green-400">
             <p className="text-sm text-gray-500">Payé</p>
             <p className="text-2xl font-bold text-green-600">{stats.paye}</p>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-yellow-400">
+            <p className="text-sm text-gray-500">À encaisser</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats.aEncaisser}&nbsp;&euro;</p>
           </div>
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">CA encaissé</p>
@@ -647,46 +654,53 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Actions statut */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {b.status !== "confirmed" && (
-                      <button
-                        onClick={() => updateStatus(b.id, "confirmed")}
-                        className="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors"
-                      >
-                        À faire
-                      </button>
-                    )}
-                    {b.status !== "completed" && (
+                  {/* Actions — flux : À faire → Réalisé → Payé */}
+                  <div className="flex flex-col items-stretch gap-2 min-w-[160px]">
+                    {b.status === "confirmed" && (
                       <button
                         onClick={() => updateStatus(b.id, "completed")}
-                        className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                        className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                       >
-                        Réalisé
+                        ✅ Marquer réalisé
                       </button>
                     )}
-                    {b.status !== "paid" && (
+                    {b.status === "completed" && (
                       <button
                         onClick={() => updateStatus(b.id, "paid")}
-                        className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
+                        className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
                       >
-                        Payé
+                        💰 Marquer payé
                       </button>
                     )}
-                    {b.status !== "cancelled" && (
+                    {b.status === "paid" && (
+                      <div className="w-full py-2.5 bg-green-50 text-green-700 rounded-lg text-sm font-semibold text-center">
+                        ✔ Terminé
+                      </div>
+                    )}
+                    {b.status === "cancelled" && (
                       <button
-                        onClick={() => updateStatus(b.id, "cancelled")}
-                        className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
+                        onClick={() => updateStatus(b.id, "confirmed")}
+                        className="w-full py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors"
                       >
-                        Annuler
+                        Remettre à faire
                       </button>
                     )}
-                    <button
-                      onClick={() => deleteBooking(b.id)}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
-                    >
-                      Suppr.
-                    </button>
+                    <div className="flex gap-1.5">
+                      {b.status !== "cancelled" && b.status !== "paid" && (
+                        <button
+                          onClick={() => updateStatus(b.id, "cancelled")}
+                          className="flex-1 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteBooking(b.id)}
+                        className="flex-1 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
+                      >
+                        Suppr.
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
