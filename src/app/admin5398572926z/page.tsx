@@ -62,10 +62,6 @@ export default function AdminPage() {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [blockedFullDays, setBlockedFullDays] = useState<string[]>([]);
   const [slotDates, setSlotDates] = useState<string[]>([]);
-  const [modalBooking, setModalBooking] = useState<Booking | null>(null);
-  const [modalType, setModalType] = useState<"realise" | "paye" | null>(null);
-  const [realiseNote, setRealiseNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const fetchBookings = useCallback(async () => {
     const res = await fetch("/api/admin/bookings");
@@ -137,75 +133,6 @@ export default function AdminPage() {
     fetchBookings();
   }
 
-  function openRealiseModal(b: Booking) {
-    setModalBooking(b);
-    setModalType("realise");
-    setRealiseNote("");
-  }
-
-  function openPayeModal(b: Booking) {
-    setModalBooking(b);
-    setModalType("paye");
-    setPaymentMethod("cash");
-  }
-
-  function closeModal() {
-    setModalBooking(null);
-    setModalType(null);
-  }
-
-  async function confirmRealise() {
-    if (!modalBooking) return;
-    await updateStatus(modalBooking.id, "completed");
-    // Ouvrir WhatsApp avec message pré-rempli
-    const phone = modalBooking.client_phone.replace(/\s/g, "").replace(/^0/, "33");
-    const msg = encodeURIComponent(
-      `Bonjour ${modalBooking.client_name} !\n\nVotre nettoyage de ${modalBooking.bin_count} bac${modalBooking.bin_count > 1 ? "s" : ""} a bien été réalisé à ${modalBooking.address}.\n${realiseNote ? `\nNote : ${realiseNote}\n` : ""}\nMerci pour votre confiance !\n— Ecolavage`
-    );
-    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
-    closeModal();
-  }
-
-  async function confirmPaye() {
-    if (!modalBooking) return;
-    await updateStatus(modalBooking.id, "paid");
-    closeModal();
-  }
-
-  function generateReceipt(b: Booking) {
-    const d = new Date(b.date + "T00:00:00");
-    const dateStr = d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`
-      <html><head><title>Reçu Ecolavage</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; }
-        h1 { color: #16a34a; font-size: 24px; margin-bottom: 4px; }
-        .sub { color: #6b7280; font-size: 14px; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        td { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-        td:last-child { text-align: right; font-weight: bold; }
-        .total td { border-bottom: none; border-top: 3px solid #16a34a; font-size: 20px; }
-        .footer { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 12px; }
-        @media print { body { margin: 0; } }
-      </style></head><body>
-      <h1>Ecolavage</h1>
-      <p class="sub">Reçu de paiement</p>
-      <table>
-        <tr><td>Client</td><td>${b.client_name}</td></tr>
-        <tr><td>Adresse</td><td>${b.address}</td></tr>
-        <tr><td>Date intervention</td><td>${dateStr}</td></tr>
-        <tr><td>Horaire</td><td>${b.time_slot}</td></tr>
-        <tr><td>Nombre de bacs</td><td>${b.bin_count}</td></tr>
-        <tr><td>Paiement</td><td>${paymentMethod === "cash" ? "Espèces" : paymentMethod === "transfer" ? "Virement" : paymentMethod === "card" ? "Carte" : paymentMethod}</td></tr>
-        <tr class="total"><td>Total payé</td><td style="color: #16a34a;">${b.price} €</td></tr>
-      </table>
-      <p class="footer">Ecolavage — Nettoyage de poubelles à domicile<br>Merci pour votre confiance !</p>
-      <script>window.print();</script>
-      </body></html>
-    `);
-  }
 
   async function deleteBooking(id: string) {
     if (!confirm("Supprimer cette réservation ?")) return;
@@ -728,56 +655,51 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Actions — flux : À faire → Réalisé → Payé */}
-                  <div className="flex flex-col items-stretch gap-2 min-w-[160px]">
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center gap-2">
                     {b.status === "confirmed" && (
-                      <button
-                        onClick={() => openRealiseModal(b)}
-                        className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                      >
-                        ✅ Marquer réalisé
-                      </button>
+                      <>
+                        <button
+                          onClick={() => updateStatus(b.id, "completed")}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                        >
+                          Réalisé
+                        </button>
+                        <button
+                          onClick={() => updateStatus(b.id, "paid")}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+                        >
+                          Payé
+                        </button>
+                      </>
                     )}
                     {b.status === "completed" && (
                       <button
-                        onClick={() => openPayeModal(b)}
-                        className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+                        onClick={() => updateStatus(b.id, "paid")}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
                       >
-                        💰 Marquer payé
+                        Payé
                       </button>
                     )}
                     {b.status === "paid" && (
+                      <span className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-semibold">
+                        ✔ Terminé
+                      </span>
+                    )}
+                    {b.status !== "cancelled" && b.status !== "paid" && (
                       <button
-                        onClick={() => generateReceipt(b)}
-                        className="w-full py-2.5 bg-green-50 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-100 transition-colors"
+                        onClick={() => updateStatus(b.id, "cancelled")}
+                        className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
                       >
-                        🧾 Voir le reçu
+                        Annuler
                       </button>
                     )}
-                    {b.status === "cancelled" && (
-                      <button
-                        onClick={() => updateStatus(b.id, "confirmed")}
-                        className="w-full py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors"
-                      >
-                        Remettre à faire
-                      </button>
-                    )}
-                    <div className="flex gap-1.5">
-                      {b.status !== "cancelled" && b.status !== "paid" && (
-                        <button
-                          onClick={() => updateStatus(b.id, "cancelled")}
-                          className="flex-1 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
-                        >
-                          Annuler
-                        </button>
-                      )}
-                      <button
-                        onClick={() => deleteBooking(b.id)}
-                        className="flex-1 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        Suppr.
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => deleteBooking(b.id)}
+                      className="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      Suppr.
+                    </button>
                   </div>
                 </div>
               );
@@ -787,113 +709,6 @@ export default function AdminPage() {
         </>}
       </div>
 
-      {/* Modal Réalisé */}
-      {modalType === "realise" && modalBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-bold mb-1">✅ Intervention terminée</h3>
-            <p className="text-gray-500 text-sm mb-5">
-              {modalBooking.client_name} — {modalBooking.bin_count} bac{modalBooking.bin_count > 1 ? "s" : ""} à {modalBooking.address}
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note (optionnel)</label>
-              <textarea
-                value={realiseNote}
-                onChange={(e) => setRealiseNote(e.target.value)}
-                placeholder="Ex : Bacs très sales, nettoyage approfondi..."
-                rows={2}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={confirmRealise}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Confirmer + Envoyer WhatsApp au client
-              </button>
-              <button
-                onClick={async () => {
-                  if (!modalBooking) return;
-                  await updateStatus(modalBooking.id, "completed");
-                  closeModal();
-                }}
-                className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
-              >
-                Confirmer sans envoyer de message
-              </button>
-              <button
-                onClick={closeModal}
-                className="w-full py-2 text-gray-500 text-sm hover:text-gray-700"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Payé */}
-      {modalType === "paye" && modalBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-bold mb-1">💰 Enregistrer le paiement</h3>
-            <p className="text-gray-500 text-sm mb-5">
-              {modalBooking.client_name} — {modalBooking.price}&nbsp;&euro;
-            </p>
-
-            <div className="mb-5">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mode de paiement</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { key: "cash", label: "💵 Espèces" },
-                  { key: "transfer", label: "🏦 Virement" },
-                  { key: "card", label: "💳 Carte" },
-                ].map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setPaymentMethod(m.key)}
-                    className={`py-3 rounded-lg text-sm font-medium transition-colors border-2 ${
-                      paymentMethod === m.key
-                        ? "border-green-500 bg-green-50 text-green-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={async () => {
-                  await confirmPaye();
-                  generateReceipt(modalBooking);
-                }}
-                className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
-              >
-                Confirmer le paiement + Générer reçu
-              </button>
-              <button
-                onClick={confirmPaye}
-                className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
-              >
-                Confirmer sans reçu
-              </button>
-              <button
-                onClick={closeModal}
-                className="w-full py-2 text-gray-500 text-sm hover:text-gray-700"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
