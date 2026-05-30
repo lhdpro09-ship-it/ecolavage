@@ -2,6 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+interface Review {
+  id: number;
+  client_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
 interface Booking {
   id: string;
   client_name: string;
@@ -41,7 +49,11 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"bookings" | "blocked">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "blocked" | "reviews">("bookings");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [newReviewName, setNewReviewName] = useState("");
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewComment, setNewReviewComment] = useState("");
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -64,6 +76,12 @@ export default function AdminPage() {
     setSlotDates(data.slotDates || []);
   }, []);
 
+  const fetchReviews = useCallback(async () => {
+    const res = await fetch("/api/reviews");
+    const data = await res.json();
+    setReviews(data.reviews || []);
+  }, []);
+
   const fetchDayDetail = useCallback(async (date: string) => {
     const res = await fetch(`/api/admin/blocked-dates?date=${date}`);
     const data = await res.json();
@@ -81,8 +99,9 @@ export default function AdminPage() {
     if (token) {
       fetchBookings();
       fetchBlockedOverview();
+      fetchReviews();
     }
-  }, [token, fetchBookings, fetchBlockedOverview]);
+  }, [token, fetchBookings, fetchBlockedOverview, fetchReviews]);
 
   useEffect(() => {
     if (selectedDate) fetchDayDetail(selectedDate);
@@ -177,6 +196,30 @@ export default function AdminPage() {
     return `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
+  async function addReview(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newReviewName || !newReviewComment) return;
+    await fetch("/api/admin/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: newReviewName, rating: newReviewRating, comment: newReviewComment }),
+    });
+    setNewReviewName("");
+    setNewReviewRating(5);
+    setNewReviewComment("");
+    fetchReviews();
+  }
+
+  async function deleteReview(id: number) {
+    if (!confirm("Supprimer cet avis ?")) return;
+    await fetch("/api/admin/reviews", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchReviews();
+  }
+
   function handleLogout() {
     sessionStorage.removeItem("admin_token");
     setToken(null);
@@ -269,6 +312,16 @@ export default function AdminPage() {
             }`}
           >
             🚫 Disponibilités
+          </button>
+          <button
+            onClick={() => setActiveTab("reviews")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "reviews"
+                ? "bg-green-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            ⭐ Avis
           </button>
         </div>
       </nav>
@@ -402,6 +455,89 @@ export default function AdminPage() {
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "reviews" && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Gérer les avis clients</h2>
+
+            {/* Formulaire ajout avis */}
+            <form onSubmit={addReview} className="bg-white rounded-xl shadow-sm p-5 mb-8">
+              <h3 className="font-semibold mb-4">Publier un avis</h3>
+              <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Nom du client</label>
+                  <input
+                    type="text"
+                    value={newReviewName}
+                    onChange={(e) => setNewReviewName(e.target.value)}
+                    placeholder="Ex : Marie D."
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Note</label>
+                  <div className="flex gap-1 pt-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setNewReviewRating(n)}
+                        className={`text-2xl ${n <= newReviewRating ? "text-yellow-400" : "text-gray-300"}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="block text-xs text-gray-500 mb-1">Commentaire</label>
+                <textarea
+                  value={newReviewComment}
+                  onChange={(e) => setNewReviewComment(e.target.value)}
+                  placeholder="Ex : Service impeccable, mes poubelles sont comme neuves !"
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              >
+                Publier l&apos;avis
+              </button>
+            </form>
+
+            {/* Liste des avis */}
+            <div className="space-y-3">
+              {reviews.length === 0 ? (
+                <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm">
+                  Aucun avis publié pour le moment.
+                </div>
+              ) : (
+                reviews.map((r) => (
+                  <div key={r.id} className="bg-white rounded-xl shadow-sm p-5 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold">{r.client_name}</span>
+                        <span className="text-yellow-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                      </div>
+                      <p className="text-gray-600 text-sm">&ldquo;{r.comment}&rdquo;</p>
+                    </div>
+                    <button
+                      onClick={() => deleteReview(r.id)}
+                      className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors shrink-0"
+                    >
+                      Suppr.
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </div>

@@ -2,6 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Reviews from "@/components/Reviews";
+
+const GALLERY = [
+  { before: "/gallery/before-1.jpeg", after: "/gallery/after-1.jpeg", label: "Bac emballages recyclables" },
+  { before: "/gallery/before-2.jpeg", after: "/gallery/after-2.png", label: "Bac déchets non recyclables" },
+];
 
 const SERVICES = [
   { bins: 1, price: 10, label: "1 bac" },
@@ -119,6 +125,55 @@ export default function Home() {
             </div>
           </div>
         </section>
+        {/* Galerie Avant / Après */}
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-4">
+              Avant / Après
+            </h2>
+            <p className="text-center text-gray-500 mb-14">
+              Voyez la différence par vous-même
+            </p>
+            <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+              {GALLERY.map((item, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-md">
+                  <p className="text-center font-semibold text-sm py-3 bg-gray-50 text-gray-600">
+                    {item.label}
+                  </p>
+                  <div className="grid grid-cols-2">
+                    <div className="relative">
+                      <Image
+                        src={item.before}
+                        alt={`Avant - ${item.label}`}
+                        width={400}
+                        height={500}
+                        className="w-full h-64 object-cover"
+                      />
+                      <span className="absolute bottom-2 left-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        AVANT
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Image
+                        src={item.after}
+                        alt={`Après - ${item.label}`}
+                        width={400}
+                        height={500}
+                        className="w-full h-64 object-cover"
+                      />
+                      <span className="absolute bottom-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        APRÈS
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Avis clients */}
+        <Reviews />
       </main>
       <Footer />
     </>
