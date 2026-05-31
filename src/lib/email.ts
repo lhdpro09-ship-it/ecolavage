@@ -79,7 +79,7 @@ export async function sendAdminNotification(booking: BookingInfo) {
   try {
     console.log("Sending admin email...");
     const { error } = await resend.emails.send({
-      from: "Ecolavage <onboarding@resend.dev>",
+      from: "Ecolavage <contact@ecolavage.shop>",
       to: "ecolavageepro@yahoo.com",
       subject: `Nouvelle réservation - ${booking.client_name} (${booking.bin_count} bac${booking.bin_count > 1 ? "s" : ""}) - ${booking.price}€`,
       html: `
