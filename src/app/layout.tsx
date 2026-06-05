@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import Tracker from "@/components/Tracker";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-geist)]">
+        <Tracker />
         {children}
       </body>
     </html>

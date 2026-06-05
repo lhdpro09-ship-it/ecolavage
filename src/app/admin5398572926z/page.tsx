@@ -62,6 +62,7 @@ export default function AdminPage() {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [blockedFullDays, setBlockedFullDays] = useState<string[]>([]);
   const [slotDates, setSlotDates] = useState<string[]>([]);
+  const [visitCount, setVisitCount] = useState<number | null>(null);
   const [modalBooking, setModalBooking] = useState<Booking | null>(null);
   const [modalType, setModalType] = useState<"realise" | "paye" | null>(null);
   const [realiseNote, setRealiseNote] = useState("");
@@ -86,6 +87,12 @@ export default function AdminPage() {
     setReviews(data.reviews || []);
   }, []);
 
+  const fetchVisits = useCallback(async () => {
+    const res = await fetch("/api/track");
+    const data = await res.json();
+    setVisitCount(data.count ?? 0);
+  }, []);
+
   const fetchDayDetail = useCallback(async (date: string) => {
     const res = await fetch(`/api/admin/blocked-dates?date=${date}`);
     const data = await res.json();
@@ -104,8 +111,9 @@ export default function AdminPage() {
       fetchBookings();
       fetchBlockedOverview();
       fetchReviews();
+      fetchVisits();
     }
-  }, [token, fetchBookings, fetchBlockedOverview, fetchReviews]);
+  }, [token, fetchBookings, fetchBlockedOverview, fetchReviews, fetchVisits]);
 
   useEffect(() => {
     if (selectedDate) fetchDayDetail(selectedDate);
@@ -622,7 +630,13 @@ export default function AdminPage() {
 
         {activeTab === "bookings" && <>
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-purple-400">
+            <p className="text-sm text-gray-500">👁 Visiteurs</p>
+            <p className="text-2xl font-bold text-purple-600">
+              {visitCount === null ? "…" : visitCount}
+            </p>
+          </div>
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">Total</p>
             <p className="text-2xl font-bold">{stats.total}</p>

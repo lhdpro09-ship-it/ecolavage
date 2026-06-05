@@ -68,7 +68,15 @@ async function initDb(): Promise<Client> {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    );
   `);
+
+  // Init visits counter
+  await client.execute("INSERT OR IGNORE INTO visits (id, count) VALUES (1, 0)");
 
   const adminCheck = await client.execute("SELECT COUNT(*) as count FROM admin");
   if (Number(adminCheck.rows[0].count) === 0) {
