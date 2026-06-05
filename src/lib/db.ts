@@ -73,6 +73,11 @@ async function initDb(): Promise<Client> {
       id INTEGER PRIMARY KEY,
       count INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS visit_days (
+      date TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    );
   `);
 
   // Init visits counter

@@ -49,7 +49,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"bookings" | "blocked" | "reviews">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "blocked" | "reviews" | "stats">("bookings");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReviewName, setNewReviewName] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(5);
@@ -63,6 +63,7 @@ export default function AdminPage() {
   const [blockedFullDays, setBlockedFullDays] = useState<string[]>([]);
   const [slotDates, setSlotDates] = useState<string[]>([]);
   const [visitCount, setVisitCount] = useState<number | null>(null);
+  const [visitDays, setVisitDays] = useState<{ date: string; count: number }[]>([]);
   const [modalBooking, setModalBooking] = useState<Booking | null>(null);
   const [modalType, setModalType] = useState<"realise" | "paye" | null>(null);
   const [realiseNote, setRealiseNote] = useState("");
@@ -91,6 +92,7 @@ export default function AdminPage() {
     const res = await fetch("/api/track");
     const data = await res.json();
     setVisitCount(data.count ?? 0);
+    setVisitDays(data.days ?? []);
   }, []);
 
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -408,6 +410,16 @@ export default function AdminPage() {
           >
             ⭐ Avis
           </button>
+          <button
+            onClick={() => setActiveTab("stats")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "stats"
+                ? "bg-green-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            📊 Statistiques
+          </button>
         </div>
       </nav>
 
@@ -627,6 +639,86 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {activeTab === "stats" && (() => {
+          const JOURS_FR = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+          const JOURS_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+          // Agrégation par jour de la semaine
+          const byDow = [0, 1, 2, 3, 4, 5, 6].map((dow) => {
+            const total = visitDays
+              .filter((d) => new Date(d.date + "T00:00:00").getDay() === dow)
+              .reduce((s, d) => s + Number(d.count), 0);
+            return { dow, label: JOURS_FULL[dow], short: JOURS_FR[dow], total };
+          });
+          const maxDow = Math.max(...byDow.map((d) => d.total), 1);
+
+          // 14 derniers jours
+          const last14 = [...visitDays].slice(0, 14).reverse();
+          const maxDay = Math.max(...last14.map((d) => Number(d.count)), 1);
+
+          return (
+            <div className="space-y-8">
+              <h2 className="text-2xl font-bold">Statistiques de visites</h2>
+
+              {/* Total */}
+              <div className="bg-white rounded-xl shadow-sm p-6 flex items-center gap-5">
+                <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center text-2xl">👁</div>
+                <div>
+                  <p className="text-gray-500 text-sm">Total visiteurs</p>
+                  <p className="text-4xl font-bold text-purple-600">{visitCount ?? "…"}</p>
+                </div>
+              </div>
+
+              {/* Par jour de la semaine */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="font-bold text-lg mb-6">Visites par jour de la semaine</h3>
+                <div className="flex items-end gap-3 h-40">
+                  {byDow.map((d) => (
+                    <div key={d.dow} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-xs font-semibold text-purple-600">{d.total || ""}</span>
+                      <div className="w-full bg-purple-100 rounded-t-lg relative" style={{ height: "100px" }}>
+                        <div
+                          className="absolute bottom-0 left-0 right-0 bg-purple-500 rounded-t-lg transition-all"
+                          style={{ height: `${Math.round((d.total / maxDow) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 font-medium">{d.short}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 14 derniers jours */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="font-bold text-lg mb-4">14 derniers jours</h3>
+                {last14.length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">Aucune donnée encore.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {last14.map((d) => {
+                      const dt = new Date(d.date + "T00:00:00");
+                      const label = dt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+                      const pct = Math.round((Number(d.count) / maxDay) * 100);
+                      return (
+                        <div key={d.date} className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500 w-44 shrink-0 capitalize">{label}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div
+                              className="bg-purple-400 h-5 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 w-6 text-right">{d.count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {activeTab === "bookings" && <>
         {/* Stats */}
