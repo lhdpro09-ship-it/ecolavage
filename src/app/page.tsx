@@ -7,6 +7,8 @@ import Reviews from "@/components/Reviews";
 const GALLERY = [
   { before: "/gallery/before-1.jpeg", after: "/gallery/after-1.jpeg", label: "Bac emballages recyclables" },
   { before: "/gallery/before-2.jpeg", after: "/gallery/after-2.png", label: "Bac déchets non recyclables" },
+  { before: "/gallery/before-3.jpeg", after: "/gallery/after-3.jpeg", label: "Bac ordures ménagères" },
+  { before: "/gallery/before-4.jpeg", after: "/gallery/after-4.jpeg", label: "Bac tri sélectif" },
 ];
 
 const SERVICES = [
@@ -134,34 +136,36 @@ export default function Home() {
             <p className="text-center text-gray-500 mb-14">
               Voyez la différence par vous-même
             </p>
-            <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto">
               {GALLERY.map((item, i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-md">
                   <p className="text-center font-semibold text-sm py-3 bg-gray-50 text-gray-600">
                     {item.label}
                   </p>
                   <div className="grid grid-cols-2">
-                    <div className="relative">
+                    <div className="relative overflow-hidden">
                       <Image
                         src={item.before}
                         alt={`Avant - ${item.label}`}
                         width={400}
                         height={500}
                         className="w-full h-64 object-cover"
+                        style={{ filter: "contrast(1.15) brightness(1.05) saturate(1.1)" }}
                       />
-                      <span className="absolute bottom-2 left-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      <span className="absolute bottom-2 left-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                         AVANT
                       </span>
                     </div>
-                    <div className="relative">
+                    <div className="relative overflow-hidden">
                       <Image
                         src={item.after}
                         alt={`Après - ${item.label}`}
                         width={400}
                         height={500}
                         className="w-full h-64 object-cover"
+                        style={{ filter: "brightness(1.08) contrast(1.12) saturate(1.25)" }}
                       />
-                      <span className="absolute bottom-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      <span className="absolute bottom-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                         APRÈS
                       </span>
                     </div>
