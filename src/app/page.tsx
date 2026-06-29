@@ -7,8 +7,6 @@ import Reviews from "@/components/Reviews";
 const GALLERY = [
   { before: "/gallery/before-1.jpeg", after: "/gallery/after-1.jpeg", label: "Bac emballages recyclables" },
   { before: "/gallery/before-2.jpeg", after: "/gallery/after-2.png", label: "Bac déchets non recyclables" },
-  { before: "/gallery/before-3.jpeg", after: "/gallery/after-3.jpeg", label: "Bac ordures ménagères" },
-  { before: "/gallery/before-4.jpeg", after: "/gallery/after-4.jpeg", label: "Bac tri sélectif" },
 ];
 
 const SERVICES = [
